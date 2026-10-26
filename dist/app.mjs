@@ -1,5 +1,5 @@
 import {createStudy} from "./study-ui.mjs";
-import {normalizeStudy} from "./study-domain.mjs";
+import {normalizeStudy,prefilledPlans} from "./study-domain.mjs";
 import {normalizeCareer} from "./career-domain.mjs";
 import {localDate,addDays,qualified,reviewState,latestDesign,summarize,initialState,exportBackup,validateSettings,validateBackup,validateLegacy,mergeBackup,safeUrl} from "./domain.mjs";
 import {openStore,readState,writeState} from "./store.mjs";
@@ -405,6 +405,8 @@ try{
   if(!state)state=await writeState(db,initialState(seed),0);
   if(!state.careerProfile||!state.careerEntries){state=await writeState(db,normalizeCareer(state),state.revision);}
   if(!state.studyEntries)state=await writeState(db,normalizeStudy(state),state.revision);
+  const defaults=prefilledPlans(state,seed,getToday());
+  if(defaults.length)state=await writeState(db,{...state,studyEntries:[...state.studyEntries,...defaults]},state.revision);
   designWeek=state.settings.activeWeek;
   if("BroadcastChannel" in window){channel=new BroadcastChannel("dsa-now-updates");channel.onmessage=e=>{if(e.data.revision!==state.revision){storageError="Progress changed in another tab. Reload before making more changes.";setSaveLabel("Another tab has updates");toast(storageError,"error")}}}
   render();timerInterval=setInterval(timerTick,500);

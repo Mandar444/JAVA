@@ -77,3 +77,33 @@ test('calendar completion and edits do not count as actual learning time',()=>{c
 test('actual minutes combine task and standalone sessions without counting planned time',()=>{const s=normalizeStudy(initialState(seed));s.attempts=[attempt('2026-10-26')];s.studyEntries=[planned(),{id:'s1',itemId:'s1',kind:'session',date:'2026-10-26',occurredAt:'2026-10-26T12:00:00Z',track:'System design',minutes:30,notes:'API notes'}];assert.deepEqual(studyMinutes(s,'2026-10-26'),{dsa:25,design:30});assert.equal(summarize(seed,s,'2026-10-26').todayMinutes,55);});
 test('calendar backup round-trip, deduplication and old backup restore preserve plans',()=>{const s=normalizeStudy(initialState(seed));s.studyEntries=[planned()];const b=validateBackup(exportBackup(seed,s),seed);assert.equal(b.schemaVersion,3);const m=mergeBackup(initialState(seed),b).state;assert.deepEqual(m.studyEntries,s.studyEntries);assert.equal(mergeBackup(m,b).added,0);const old={...b,schemaVersion:2};delete old.studyEntries;assert.deepEqual(mergeBackup(m,validateBackup(old,seed)).state.studyEntries,s.studyEntries);assert.throws(()=>validateBackup({...b,studyEntries:null},seed));});
 test('calendar validation rejects invalid dates, targets, duplicate IDs and fractional minutes',()=>{validateStudyEntries([planned()],seed);for(const e of [planned({date:'2026-02-30'}),planned({minutes:2.5}),planned({targetId:'unknown'}),planned({kind:'session',track:'Other'})])assert.throws(()=>validateStudyEntries([e],seed));assert.throws(()=>validateStudyEntries([planned(),planned()],seed));});
+
+import {prefilledPlans} from '../dist/study-domain.mjs';
+test('prefilled calendar covers the full sheet with detailed daily to-dos and budgeted review days',()=>{
+  const s=normalizeCareer(initialState(seed)), rows=prefilledPlans(s,seed,'2026-10-26','2026-10-26T09:00:00Z');
+  validateStudyEntries(rows,seed);
+  assert.equal(new Set(rows.filter(e=>e.targetId.startsWith('DSA')).map(e=>e.targetId)).size,156);
+  for(const date of new Set(rows.map(e=>e.date))){const day=rows.filter(e=>e.date===date);assert.equal(day.length,2);assert.ok(day.every(e=>e.notes.split('\n').length>=3));assert.ok([60,120].includes(day.reduce((n,e)=>n+e.minutes,0)));}
+  assert.equal(rows.filter(e=>e.date==='2026-10-26').reduce((n,e)=>n+e.minutes,0),120);
+  assert.equal(rows.filter(e=>e.date==='2026-11-01').reduce((n,e)=>n+e.minutes,0),60);
+  assert.equal(rows.find(e=>e.date==='2026-10-27'&&e.targetId.startsWith('DSA')).targetId,'DSA-A02');
+  s.studyEntries=rows;assert.deepEqual(studyMinutes(s,'2026-10-26'),{dsa:0,design:0});
+  assert.deepEqual(prefilledPlans(s,seed,'2026-10-27'),[]);
+});
+test('prefill preserves manual plans, removals and completed problems',()=>{
+  const s=normalizeCareer(initialState(seed));s.attempts=[attempt('2026-10-25')];
+  s.studyEntries=[planned({date:'2026-10-26',targetId:'DSA-A02'}),planned({id:'removed',itemId:'removed',date:'2026-10-27',status:'Skipped'})];
+  const rows=prefilledPlans(s,seed,'2026-10-26');
+  assert.ok(rows.every(e=>e.date>'2026-10-27'&&e.targetId!=='DSA-A01'&&e.targetId!=='DSA-A02'));
+  const removed=rows.map(e=>({...e,status:'Skipped'}));s.studyEntries.push(...removed);
+  assert.deepEqual(prefilledPlans(s,seed,'2026-11-01'),[]);
+  const restored=mergeBackup(initialState(seed),validateBackup(exportBackup(seed,s),seed)).state;
+  assert.deepEqual(prefilledPlans(restored,seed,'2026-11-01'),[]);
+});
+test('prefill scales to study preferences without overwriting an existing schedule',()=>{
+  const s=normalizeCareer(initialState(seed));s.careerProfile.dailyMinutes=90;s.careerProfile.daysPerWeek=5;
+  const rows=prefilledPlans(s,seed,'2026-10-26');
+  assert.equal(rows.filter(e=>e.date==='2026-10-26').reduce((n,e)=>n+e.minutes,0),90);
+  assert.equal(rows.filter(e=>e.date==='2026-10-31').reduce((n,e)=>n+e.minutes,0),45);
+  s.studyEntries=rows;s.careerProfile.dailyMinutes=120;assert.deepEqual(prefilledPlans(s,seed,'2026-10-27'),[]);
+});

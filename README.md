@@ -24,7 +24,7 @@ Use the same browser and exact address to keep using the same local progress.
 - **System Design:** 24 notebooks, starting with requests, APIs, databases and object design. Save notes, sketches, explanations and session time.
 - **Daily Planner:** choose a date, assign specific problems/design topics and estimate minutes. Log actual learning time separately. Calendar cells show planned topics and minutes actually learned.
 
-**Plan next 7 days** fills unplanned study days starting from the selected date. It uses the daily goal and study-day count in Settings, prioritizes unsolved core problems and unreviewed design topics, and leaves already planned days alone. When both tracks have available topics, 75% of the daily budget goes to DSA and 25% to design. The default is 120 minutes, six study days.
+The calendar is pre-filled automatically on first opening with the remaining DSA sheet (core first, then optional exercises) and accompanying system design practice. Every entry includes concrete to-dos. Full study days use your daily goal (default 120 minutes: 90 DSA + 30 design); weekly review/catch-up days use half that time. Design topics cycle through learning, applying, comparing tradeoffs and recall. Existing dates and removed items are preserved. The initial schedule is saved once, survives backup/restore, and does not shift when you reload or change settings. Add your own topics or remove entries to adjust the schedule.
 
 Marking a plan Done does not add learning time or independently solve a DSA problem. Actual minutes come from saved problem attempts, Java refreshers, design sessions and separate calendar time entries. Only add separate time that has not already been logged with a task. All completion and time are self-reported; the app does not execute or grade Java.
 
@@ -46,7 +46,7 @@ This repository contains no personal planner data. Import your own backup in Set
 npm test
 ```
 
-18 tests cover DSA reviews, migration, backup compatibility, conflicts, calendar records and planned-versus-actual time. Use `node server.mjs 48262` for a separate test origin.
+21 tests cover DSA reviews, migration, backup compatibility, conflicts, calendar records and planned-versus-actual time. Use `node server.mjs 48262` for a separate test origin.
 
 - `dist/app.mjs`: application events, forms and existing study workflows.
 - `dist/study-ui.mjs`, `dist/studio.css`: three-screen interface and calendar.

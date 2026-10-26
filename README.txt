@@ -8,8 +8,10 @@ USE
 DSA Sheet: select a topic, solve in Java, log the attempt and actual minutes.
 Revision is inside the sheet. Use the problem's Java help only when needed.
 System Design: choose a topic, keep notes and log a design session.
-Daily Planner: click a date, add topics and planned minutes. Plan next 7 days
-can suggest a week using your current daily goal and uncompleted topics.
+Daily Planner: the full remaining DSA sheet and design practice are pre-filled.
+Click a date to see its topics, detailed to-dos and planned minutes.
+Full days use your daily goal; weekly catch-up days use half.
+Add your own topics whenever needed. Reloading keeps your schedule unchanged.
 Existing planned days are preserved. Remove and re-add a plan to change it.
 
 TIME
