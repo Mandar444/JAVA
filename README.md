@@ -46,7 +46,7 @@ This repository contains no personal planner data. Import your own backup in Set
 npm test
 ```
 
-21 tests cover DSA reviews, migration, backup compatibility, conflicts, calendar records and planned-versus-actual time. Use `node server.mjs 48262` for a separate test origin.
+22 tests cover DSA reviews, migration, backup compatibility, conflicts, calendar records and planned-versus-actual time. Use `node server.mjs 48262` for a separate test origin.
 
 - `dist/app.mjs`: application events, forms and existing study workflows.
 - `dist/study-ui.mjs`, `dist/studio.css`: three-screen interface and calendar.
@@ -55,3 +55,5 @@ npm test
 - `dist/curriculum.js`: exercise and design content.
 - `dist/career-domain.mjs`, `dist/career-data.mjs`: compatibility for older preparation backups.
 - `server.mjs`: loopback-only local server.
+
+Use Start tomorrow in the calendar to shift the remaining pre-filled plan. Completed items, your own added topics and logged time keep their original dates.

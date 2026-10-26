@@ -50,3 +50,15 @@ export function prefilledPlans(state, seed, startDate, occurredAt = new Date().t
   validateStudyEntries(records,seed);
   return records;
 }
+
+export function moveStudyStart(state, seed, startDate, occurredAt = new Date().toISOString()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isFinite(Date.parse(startDate)) || new Date(startDate+'T12:00:00Z').toISOString().slice(0,10)!==startDate) throw Error('Choose a valid start date.');
+  const pending = latestPlans(state).filter(e => e.itemId.startsWith('prefill-v1-') && e.status === 'Planned');
+  if (!pending.length) return [];
+  const first = pending.map(e => e.date).sort()[0];
+  const offset = Date.parse(startDate+'T12:00:00Z') - Date.parse(first+'T12:00:00Z');
+  if (!offset) return [];
+  const moved = pending.map(e => ({...e,id:crypto.randomUUID(),occurredAt,date:new Date(Date.parse(e.date+'T12:00:00Z')+offset).toISOString().slice(0,10)}));
+  validateStudyEntries(moved,seed);
+  return moved;
+}

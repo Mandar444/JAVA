@@ -35,3 +35,5 @@ online domain requires exporting your local backup and importing it online.
 DEVELOPMENT
 Node.js 20+; no dependencies. npm start launches the local server.
 npm test runs 18 domain tests. Separate QA origin: node server.mjs 48262.
+
+Use Start tomorrow in the calendar to shift the remaining pre-filled plan. Completed items, your own added topics and logged time keep their original dates.

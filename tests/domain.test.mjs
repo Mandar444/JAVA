@@ -107,3 +107,22 @@ test('prefill scales to study preferences without overwriting an existing schedu
   assert.equal(rows.filter(e=>e.date==='2026-10-31').reduce((n,e)=>n+e.minutes,0),45);
   s.studyEntries=rows;s.careerProfile.dailyMinutes=120;assert.deepEqual(prefilledPlans(s,seed,'2026-10-27'),[]);
 });
+
+import {moveStudyStart} from '../dist/study-domain.mjs';
+test('moving the start shifts pending defaults while preserving manual plans, completed work and actual time',()=>{
+ const s=normalizeCareer(initialState(seed));s.studyEntries=prefilledPlans(s,seed,'2026-10-26','2026-10-26T09:00:00Z');
+ s.studyEntries.push(planned({id:'manual',itemId:'manual',date:'2026-11-01'}));
+ s.studyEntries[3].status='Done';s.attempts=[attempt('2026-10-26')];
+ const original=structuredClone(s),moved=moveStudyStart(s,seed,'2026-10-27','2026-10-26T10:00:00Z');
+ assert.deepEqual(s,original);assert.equal(moved.length,s.studyEntries.length-2);
+ s.studyEntries.push(...moved);const plans=latestPlans(s);
+ assert.equal(plans.find(e=>e.itemId==='prefill-v1-2026-10-26-dsa').date,'2026-10-27');
+ assert.equal(plans.find(e=>e.itemId==='prefill-v1-2026-11-01-dsa').date,'2026-11-02');
+ assert.equal(plans.find(e=>e.itemId==='manual').date,'2026-11-01');
+ assert.equal(plans.find(e=>e.status==='Done').date,'2026-10-27');
+ assert.equal(plans.length,original.studyEntries.length);assert.equal(studyMinutes(s,'2026-10-26').dsa,25);
+ assert.deepEqual(moveStudyStart(s,seed,'2026-10-27'),[]);
+ assert.deepEqual(prefilledPlans(s,seed,'2026-10-27'),[]);
+ const restored=mergeBackup(initialState(seed),validateBackup(exportBackup(seed,s),seed)).state;
+ assert.equal(latestPlans(restored).find(e=>e.itemId==='prefill-v1-2026-10-26-dsa').date,'2026-10-27');
+});
