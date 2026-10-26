@@ -1,12 +1,13 @@
 # DSA Now
 
-A local Java DSA and career preparation tracker, focused on Google and other eligible India student / early-career software roles.
+A focused workspace for **Java DSA, system design and a daily study calendar**.
+Three main screens. No career dashboards or fixed 22-week schedule.
 
-![DSA Now dashboard](preview.png)
+![DSA sheet](preview.png)
 
 ## Run locally
 
-Use Node.js 20 or newer. No package installation is needed; there are no runtime dependencies.
+Node.js 20 or newer is required. No dependency installation is needed.
 
 ```sh
 git clone https://github.com/Mandar444/JAVA.git
@@ -14,31 +15,30 @@ cd JAVA
 npm start
 ```
 
-Open **http://127.0.0.1:48260**. On Windows, you can instead double-click `Start-DSA.cmd`; it checks the local bundled Node runtime and then Node on PATH. Run the launcher again after restarting your computer.
+Open http://127.0.0.1:48260. On Windows, double-click `Start-DSA.cmd` instead.
+Use the same browser and exact address to keep using the same local progress.
 
-The server listens only on `127.0.0.1`. Pushing this repository does not deploy the website.
+## Three screens
 
-## Features
+- **DSA Sheet:** 156 original Java exercises in 26 topic groups; 96 core and 60 optional. Search, filter, log attempts and revisit problems through the revision queue. Java help is available inside each problem.
+- **System Design:** 24 notebooks, starting with requests, APIs, databases and object design. Save notes, sketches, explanations and session time.
+- **Daily Planner:** choose a date, assign specific problems/design topics and estimate minutes. Log actual learning time separately. Calendar cells show planned topics and minutes actually learned.
 
-- 156 original Java DSA tasks: 96 core and 60 optional across 26 modules.
-- A 22-week plan: October 26, 2026 to March 31, 2027, including buffer days.
-- Adjustable two-hour daily rhythm: 70 minutes DSA, 20 revision, 30 supporting work.
-- Spaced revision, independent-solve evidence and retention tracking.
-- 29 milestones for CS fundamentals, a Java project, behavioral stories and career setup.
-- Mock feedback, application stages, activity history and a design notebook.
-- Targeted Java revision instead of restarting the language.
-- Company interview guidance with official sources checked October 26, 2026.
-- Responsive desktop/mobile UI and JSON backup import/export.
+**Plan next 7 days** fills unplanned study days starting from the selected date. It uses the daily goal and study-day count in Settings, prioritizes unsolved core problems and unreviewed design topics, and leaves already planned days alone. When both tracks have available topics, 75% of the daily budget goes to DSA and 25% to design. The default is 120 minutes, six study days.
 
-Exercises and mock scores are self-reported practice tools. The app does not execute Java or predict hiring outcomes. Interview formats vary by role, location and recruiter instructions. Plan dates are preparation targets, not company application deadlines.
+Marking a plan Done does not add learning time or independently solve a DSA problem. Actual minutes come from saved problem attempts, Java refreshers, design sessions and separate calendar time entries. Only add separate time that has not already been logged with a task. All completion and time are self-reported; the app does not execute or grade Java.
 
-## Your data
+## Progress and backups
 
-Progress stays in **IndexedDB in your browser profile**. Use the same browser and exact address every time. Different browsers, ports, `localhost` and `127.0.0.1` have separate storage.
+Data lives in IndexedDB in your browser profile. Different browsers, ports, domains and `localhost` versus `127.0.0.1` use separate storage. The site does not sync progress between devices.
 
-Use **Settings & backups → Export progress JSON** regularly. Clearing browser data can erase progress. Version 2 backups include attempts, design/Java sessions, preparation records, mocks, applications and preferences. Version 1 progress backups and the original Java planner backup format are also supported.
+Export JSON regularly using the footer or Settings. Clearing browser data may erase progress. Version 3 backups include calendar plans and time entries, and imports still accept versions 1 and 2. Older preparation records remain in the activity archive and backups even though their dashboards have been removed.
 
-The repository starts with empty progress. Personal planner records and browser databases are excluded. No accounts, analytics, cloud sync or automatic application submissions. External resource links require internet when opened.
+This repository contains no personal planner data. Import your own backup in Settings to restore progress on a new browser or domain.
+
+## Vercel
+
+`vercel.json` explicitly serves `dist` with no build/install step. Keep the project Root Directory at the repository root. A connected Vercel project redeploys when its production branch is updated.
 
 ## Development
 
@@ -46,14 +46,12 @@ The repository starts with empty progress. Personal planner records and browser 
 npm test
 ```
 
-The 14 tests cover reviews, migration, validation, backup compatibility, deduplication, merge conflicts and core-task coverage.
+18 tests cover DSA reviews, migration, backup compatibility, conflicts, calendar records and planned-versus-actual time. Use `node server.mjs 48262` for a separate test origin.
 
-- `dist/`: browser UI, curriculum, IndexedDB storage and progress logic.
-- `dist/career-data.mjs`: roadmap, milestones and official research sources.
-- `dist/career-domain.mjs` and `dist/career-ui.mjs`: preparation tracking and screens.
-- `tests/`: Node test suite.
-- `server.mjs`: local static server.
-- `Start-DSA.cmd` / `Start-DSA.ps1`: Windows launcher.
-- `README.txt`: detailed operating instructions.
-
-For an isolated test workspace, run `node server.mjs 48261`. Keep everyday progress on port 48260.
+- `dist/app.mjs`: application events, forms and existing study workflows.
+- `dist/study-ui.mjs`, `dist/studio.css`: three-screen interface and calendar.
+- `dist/study-domain.mjs`: calendar records and learning-time calculations.
+- `dist/domain.mjs`, `dist/store.mjs`: reviews, backups and IndexedDB persistence.
+- `dist/curriculum.js`: exercise and design content.
+- `dist/career-domain.mjs`, `dist/career-data.mjs`: compatibility for older preparation backups.
+- `server.mjs`: loopback-only local server.

@@ -1,4 +1,5 @@
-import {createCareer} from "./career-ui.mjs";
+import {createStudy} from "./study-ui.mjs";
+import {normalizeStudy} from "./study-domain.mjs";
 import {normalizeCareer} from "./career-domain.mjs";
 import {localDate,addDays,qualified,reviewState,latestDesign,summarize,initialState,exportBackup,validateSettings,validateBackup,validateLegacy,mergeBackup,safeUrl} from "./domain.mjs";
 import {openStore,readState,writeState} from "./store.mjs";
@@ -33,8 +34,8 @@ const paths={
  leaf:'<path d="M20 3C6 2 1 9 5 16c4 7 16 2 15-13ZM5 21l10-12"/>'
 };
 function icon(name,size=20){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.dot}</svg>`}
-const nav=[["today","home","Today"],["roadmap","map","22-week plan"],["practice","code","DSA practice"],["reviews","repeat","Revision queue"],["interviews","book","Interview map"],["cs","book","CS fundamentals"],["project","code","Project lab"],["stories","spark","Story bank"],["mocks","clock","Mock studio"],["applications","external","Applications"],["career","check","Career setup"],["design","design","System design"],["java","java","Java, when needed"],["progress","chart","Progress"],["history","history","Activity & history"],["profile","settings","My plan"],["settings","shield","Settings & backups"]];
-let db,state,summary,view=location.hash.slice(1)||"today",dirty=false,saving=false,storageError="",channel;
+const nav=[["practice","code","DSA Sheet"],["design","design","System Design"],["planner","map","Daily Planner"],["reviews","repeat","Revision"],["history","history","Activity history"],["settings","settings","Settings & backups"]];
+let db,state,summary,view=location.hash.slice(1)||"practice",dirty=false,saving=false,storageError="",channel;
 let filters={query:"",module:"all",track:"Core",difficulty:"all",status:"all"};
 let designWeek=1,selectedProblem=null,javaContext=null,importCandidate=null;
 let timer={remaining:25*60,total:25*60,running:false,endsAt:null},timerInterval;
@@ -139,7 +140,7 @@ function filteredProblems(){
 }
 function problemTable(rows){
   if(!rows.length)return empty("No tasks match this view.","Try another topic or clear your filters.",'<button class="btn outline" data-action="reset-filters">Clear filters</button>');
-  return `<div class="table-scroll"><table class="practice-table"><thead><tr><th>Problem</th><th>Topic</th><th>Level</th><th>Status</th><th>Next review</th><th><span class="sr-only">Action</span></th></tr></thead><tbody>${rows.map(p=>{const r=summary.reviews[p.id],m=seed.modules.find(m=>m.id===p.moduleId);return `<tr><td><button class="problem-name" data-task="${p.id}">${esc(p.title)}</button><div class="problem-meta">${p.id}<span>·</span>${p.track}${p.week?`<span>·</span>Week ${p.week}`:""}</div></td><td><span class="topic-letter">${m.letter}</span>${esc(m.title)}</td><td>${badge(p.difficulty,p.difficulty==="Easy"?"green":p.difficulty==="Hard"?"orange":"violet")}</td><td>${outcomeBadge(r)}</td><td>${r.nextDueDate?`<span class="${r.nextDueDate<=getToday()?"due-date":""}">${dateLabel(r.nextDueDate)}</span>`:"<span class='muted'>Not scheduled</span>"}</td><td><button class="icon-button" data-task="${p.id}" aria-label="Open ${esc(p.title)}">${icon("arrow",18)}</button></td></tr>`}).join("")}</tbody></table></div>`;
+  return `<div class="table-scroll"><table class="practice-table"><thead><tr><th>Problem</th><th>Topic</th><th>Level</th><th>Status</th><th>Next review</th><th><span class="sr-only">Action</span></th></tr></thead><tbody>${rows.map(p=>{const r=summary.reviews[p.id],m=seed.modules.find(m=>m.id===p.moduleId);return `<tr><td><button class="problem-name" data-task="${p.id}">${esc(p.title)}</button><div class="problem-meta">${p.id}<span>·</span>${p.track}</div></td><td><span class="topic-letter">${m.letter}</span>${esc(m.title)}</td><td>${badge(p.difficulty,p.difficulty==="Easy"?"green":p.difficulty==="Hard"?"orange":"violet")}</td><td>${outcomeBadge(r)}</td><td>${r.nextDueDate?`<span class="${r.nextDueDate<=getToday()?"due-date":""}">${dateLabel(r.nextDueDate)}</span>`:"<span class='muted'>Not scheduled</span>"}</td><td><button class="icon-button" data-task="${p.id}" aria-label="Open ${esc(p.title)}">${icon("arrow",18)}</button></td></tr>`}).join("")}</tbody></table></div>`;
 }
 function renderPractice(){
   const rows=filteredProblems();
@@ -153,7 +154,7 @@ function renderPractice(){
 function renderReviews(){
   const started=seed.problems.filter(p=>summary.reviews[p.id].latest);
   const upcoming=started.filter(p=>summary.reviews[p.id].nextDueDate>getToday()).sort((a,b)=>summary.reviews[a.id].nextDueDate.localeCompare(summary.reviews[b.id].nextDueDate));
-  return `${title("TURN PRACTICE INTO MEMORY","Come back. See what stuck.","Solve from a blank file. A successful independent review on a later day builds retention.")}
+  return `${'<a href="#practice" class="back-sheet">← Back to DSA sheet</a>'+title("TURN PRACTICE INTO MEMORY","Come back. See what stuck.","Solve from a blank file. A successful independent review on a later day builds retention.")}
   <div class="review-explainer card"><div><span class="icon-tile lavender">${icon("repeat",25)}</span><h3>Your revision rhythm</h3><p>Two successful later-day reviews earn “Retained”. A difficult revisit is useful feedback.</p></div><div class="review-steps">${["Initial solve","Review 1","Review 2","Review 3+"].map((l,i)=>`<div><span>${l}</span><strong>+${[1,3,7,21][i]} day${i?"s":""}</strong>${i===2?'<small>Retained</small>':""}</div>`).join("")}</div></div>
   <div class="section-heading"><h2>Ready for a revisit <span class="count-pill">${summary.due.length}</span></h2></div>
   ${summary.due.length?`<section class="card">${problemTable(summary.due)}</section>`:empty("Your revision queue is clear.","After your first attempt, a task will return here on its scheduled review date.",'<a href="#practice" class="btn primary">Find a problem '+icon("arrow",16)+'</a>')}
@@ -167,9 +168,9 @@ function renderRoadmap(){
 function renderDesign(){
   const w=seed.roadmap.find(r=>r.week===designWeek)||currentWeek(),d=latestDesign(state.systemDesignEntries,w.systemDesignId);
   const versions=state.systemDesignEntries.filter(e=>e.systemDesignId===w.systemDesignId).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt));
-  return `${title("THINK IN SYSTEMS","Learn to explain the whole picture.","Start with a request. Add complexity only when there is a reason.")}
-  <div class="design-layout"><aside class="card design-weeks"><h3>Your design track</h3>${seed.roadmap.map(r=>`<button data-design-week="${r.week}" class="${w.week===r.week?"selected":""}"><span>${String(r.week).padStart(2,"0")}</span><span>${esc(r.systemDesign)}</span>${latestDesign(state.systemDesignEntries,r.systemDesignId)?.status==="Reviewed"?icon("check",15):""}</button>`).join("")}</aside>
-  <section><div class="design-brief"><span class="eyebrow">${w.systemDesignId} / WEEK ${w.week}</span><h2>${esc(w.systemDesign)}</h2><p>${esc(w.designDeliverable)}</p><div class="checkpoint">${icon("check",18)}<span>${esc(w.designCheckpoint)}</span></div></div>
+  return `${title("SYSTEM DESIGN, MADE APPROACHABLE","Start small. Think clearly.","Understand the fundamentals, sketch a solution, and explain your choices. Work at your own pace.")}
+  <div class="design-layout"><aside class="card design-weeks"><h3>Topics to explore</h3>${seed.roadmap.map(r=>`<button data-design-week="${r.week}" class="${w.week===r.week?"selected":""}"><span>${String(r.week).padStart(2,"0")}</span><span>${esc(r.systemDesign)}</span>${latestDesign(state.systemDesignEntries,r.systemDesignId)?.status==="Reviewed"?icon("check",15):""}</button>`).join("")}</aside>
+  <section><div class="design-brief"><span class="eyebrow">${w.systemDesignId} / DESIGN NOTEBOOK</span><h2>${esc(w.systemDesign)}</h2><p>${esc(w.designDeliverable)}</p><div class="checkpoint">${icon("check",18)}<span>${esc(w.designCheckpoint)}</span></div></div>
   ${w.week===1?`<div class="request-flow card"><span>${icon("home",22)}Client<small>sends a request</small></span>${icon("arrow")}<span>${icon("code",22)}Server<small>runs your logic</small></span>${icon("arrow")}<span>${icon("book",22)}Database<small>stores the data</small></span></div>`:""}
   <form id="design-form" class="card form-card"><input type="hidden" name="systemDesignId" value="${w.systemDesignId}"><div class="section-heading"><h3>Your design notebook</h3>${badge(d?.status||"Not started",d?.status==="Reviewed"?"green":"neutral")}</div>
   <div class="form-grid">${[
@@ -211,9 +212,10 @@ function renderHistory(){
   const events=[...state.attempts.map(e=>({...e,type:"DSA",label:seed.problems.find(p=>p.id===e.problemId)?.title,detail:e.outcome,note:e.notes})),
     ...state.systemDesignEntries.map(e=>({...e,type:"Design",label:seed.roadmap.find(w=>w.systemDesignId===e.systemDesignId)?.systemDesign,detail:e.status,note:e.artifact})),
     ...state.javaRevisionEntries.map(e=>({...e,type:"Java",label:seed.javaHelp.find(j=>j.id===e.javaHelpId)?.trigger,detail:e.blockerResolved?"Resolved":"Revisiting",note:e.takeaway})),
+    ...state.studyEntries.filter(e=>e.kind==="session").map(e=>({...e,localDate:e.date,type:e.track,label:e.track+" study session",detail:"Logged time",note:e.notes})),
     ...state.careerEntries.map(e=>({...e,type:e.kind==="application"?"Application":e.kind==="mock"?"Mock":"Preparation",label:e.title,detail:e.status,note:e.notes+(e.kind==="application"?"\nNext action: "+e.nextAction:"")}))]
     .sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt));
-  return `${title("YOUR WORK, KEPT SAFE","Every attempt has a story.","New learning activity lives here. Your previous Java planner remains in its own archive.")}
+  return `${'<a href="#practice" class="back-sheet">← Back to DSA sheet</a>'+title("YOUR WORK, KEPT SAFE","Every attempt has a story.","New learning activity lives here. Your previous Java planner remains in its own archive.")}
   <section class="card"><div class="card-heading"><h2>Learning activity</h2><span class="muted">${events.length} saved sessions</span></div>${events.length?`<div class="event-list">${events.slice(0,200).map(e=>`<details class="event"><summary><span class="event-icon ${e.type==="DSA"?"sage":e.type==="Design"?"peach":"lavender"}">${icon(e.type==="DSA"?"code":e.type==="Design"?"design":"java",19)}</span><span><strong>${esc(e.label)}</strong><small>${esc(e.type)} · ${esc(e.detail)} · ${dateLabel(e.localDate)}</small></span><span>${duration(e.minutes||0)}</span>${icon("chevron",15)}</summary><div class="event-body"><p>${esc(e.note||"No notes for this session.")}</p>${e.code?`<pre><code>${esc(e.code)}</code></pre>`:""}</div></details>`).join("")}</div>${events.length>200?'<p class="field-hint padded">Showing the most recent 200 sessions. All records are included in your backup.</p>':""}`:empty("Your next attempt starts this story.","Log a DSA attempt, a design session, or a targeted Java revision.")}</section>
   <div class="section-heading"><div><span class="eyebrow">WHERE YOU STARTED</span><h2>Your Java planner archive</h2></div><button class="btn outline" data-action="import">${icon("upload",16)} Import backup</button></div>
   ${state.legacyImports.map(item=>{const days=Object.entries(item.payload.days),learning=days.reduce((n,[,d])=>n+d.learn.filter(Boolean).length,0),practice=days.reduce((n,[,d])=>n+d.practice.filter(Boolean).length,0),active=days.filter(([,d])=>[...d.learn,...d.practice].some(Boolean));return `<section class="card legacy-card"><div class="legacy-header"><span class="icon-tile blue">${icon("history",25)}</span><div><h3>${esc(item.sourceFileName||"Imported Java planner")}</h3><p>Original history preserved. Topic labels were not present in this backup.</p></div>${badge("Unmapped","neutral")}</div><div class="legacy-metrics"><span><strong>${learning}</strong>Learning checks</span><span><strong>${practice}</strong>Practice checks</span><span><strong>${active.length}</strong>Days with activity</span></div><details><summary>View the original day records</summary><div class="legacy-days">${days.map(([day,d])=>`<div class="legacy-day"><strong>Day ${esc(day)}</strong><span>${d.learn.filter(Boolean).length}/${d.learn.length} learning · ${d.practice.filter(Boolean).length}/${d.practice.length} practice</span>${d.learned?`<p>${esc(d.learned)}</p>`:""}${typeof d.doubts==="string"&&d.doubts.trim()?`<p class="muted">Questions: ${esc(d.doubts)}</p>`:""}</div>`).join("")}</div></details><p class="field-hint">These checks do not automatically complete new DSA tasks. The raw backup is included in every export.</p></section>`}).join("")}`;
@@ -221,16 +223,16 @@ function renderHistory(){
 function renderSettings(){
   const s=state.settings;
   return `${title("MAKE IT WORK FOR YOU","Your pace. Your workspace.","Tune the plan and keep a portable copy of your progress.")}
-  <div class="settings-grid"><form id="settings-form" class="card form-card"><h2>Storage & design preferences</h2><p>Set your daily budget and 22-week focus in <a href="#profile">My plan</a>.</p><div class="form-grid"><label>Design notebook default week (separate from preparation plan)<select name="activeWeek">${seed.roadmap.map(w=>`<option value="${w.week}" ${s.activeWeek===w.week?"selected":""}>Week ${w.week} · ${esc(w.dsa)}</option>`).join("")}</select></label><label>Plan start date<input name="startDate" type="date" value="${s.startDate||""}"></label><label class="span-2">Timezone<input name="timezone" value="${esc(s.timezone)}" placeholder="Asia/Kolkata" required><small class="field-hint">An IANA timezone such as Asia/Kolkata or Europe/London.</small></label></div><label class="check-label"><input type="checkbox" name="paused" ${s.paused?"checked":""}> Pause new-task suggestions</label><p class="field-hint">Your history and review dates stay unchanged. Resume whenever you're ready.</p><div class="form-error" role="alert"></div><button class="btn primary" type="submit">Save preferences ${icon("check",16)}</button></form>
+  <div class="settings-grid"><form id="settings-form" class="card form-card"><h2>Your study preferences</h2><div class="form-grid"><label>Daily study goal (minutes)<input name="minutesPerDay" type="number" min="30" max="360" value="${state.careerProfile.dailyMinutes}" required></label><label>Study days per week<input name="daysPerWeek" type="number" min="1" max="7" value="${state.careerProfile.daysPerWeek}" required></label><input name="activeWeek" type="hidden" value="${s.activeWeek}"><label>Plan start date<input name="startDate" type="date" value="${s.startDate||""}"></label><label class="span-2">Timezone<input name="timezone" value="${esc(s.timezone)}" placeholder="Asia/Kolkata" required><small class="field-hint">An IANA timezone such as Asia/Kolkata or Europe/London.</small></label></div><label class="check-label"><input type="checkbox" name="paused" ${s.paused?"checked":""}> Pause new-task suggestions</label><p class="field-hint">Your history and review dates stay unchanged. Resume whenever you're ready.</p><div class="form-error" role="alert"></div><button class="btn primary" type="submit">Save preferences ${icon("check",16)}</button></form>
   <div><section class="card backup-card"><span class="icon-tile sage">${icon("shield",26)}</span><h2>Your progress belongs to you.</h2><p>Everything saves in this browser profile on this device. Export a backup before clearing browser data or moving to another device.</p><div class="backup-actions"><button class="btn primary full" data-action="export">${icon("download",17)} Export progress JSON</button><button class="btn outline full" data-action="import">${icon("upload",17)} Preview & restore a backup</button></div><div class="backup-last">Last export: ${s.lastBackupAt?esc(new Date(s.lastBackupAt).toLocaleString("en",{timeZone:s.timezone})):"Not yet — make your first backup."}</div></section>
-  <section class="card about-card"><h3>Built around your roadmap</h3><p>26 modules · 156 practice tasks<br>96 core + 60 extended<br>22-week career plan · 24 design exercises</p><div class="small-note">Progress is self-reported. This app does not execute Java or automatically grade solutions.</div><p class="muted">Curriculum ${seed.curriculumVersion}</p></section></div></div>`;
+  <section class="card about-card"><h3>Your learning workspace</h3><p>26 modules · 156 practice tasks<br>96 core + 60 extended<br>Daily calendar · Study-time logging</p><div class="small-note">Progress is self-reported. This app does not execute Java or automatically grade solutions.</div><p class="muted">Curriculum ${seed.curriculumVersion}</p></section></div></div>`;
 }
-const career=createCareer({seed,esc,icon,addDays,dateLabel,state:()=>state,summary:()=>summary,today:getToday,commit,toast,navigate,refresh:render,discard:()=>{if(dirty&&!confirm("Discard unsaved changes?"))return false;dirty=false;return true;},saved:()=>{dirty=false;closeTask(true);render();}});
+const study=createStudy({seed,esc,icon,addDays,dateLabel,state:()=>state,summary:()=>summary,today:getToday,view:()=>view,storageError:()=>storageError,filters:()=>filters,filtered:filteredProblems,commit,toast,refresh:render,discard:()=>{if(dirty&&!confirm("Discard unsaved changes?"))return false;dirty=false;return true;},saved:()=>{dirty=false;render();}});
 function render(){
   summary=summarize(seed,state,getToday());
-  const renders={today:renderToday,practice:renderPractice,reviews:renderReviews,roadmap:renderRoadmap,design:renderDesign,java:renderJava,progress:renderProgress,history:renderHistory,settings:renderSettings,...career.views};
-  if(!renders[view])view="today";
-  $("#app").innerHTML=shell(renders[view]());
+  const renders={practice:study.sheet,design:renderDesign,planner:study.planner,reviews:renderReviews,history:renderHistory,settings:renderSettings};
+  if(!renders[view])view="practice";
+  $("#app").innerHTML=study.shell(renders[view]());
   document.title=`${nav.find(n=>n[0]===view)?.[2]} · DSA Now`;
 }
 function formatTimer(){
@@ -304,10 +306,10 @@ async function submitDesign(form){
   await commit(s=>s.systemDesignEntries.push(e));dirty=false;render();toast(e.status==="Reviewed"?"Design reviewed. You can explain the decisions behind it.":"Design session saved.");
 }
 async function submitSettings(form){
-  const f=new FormData(form),settings=validateSettings({...state.settings,minutesPerDay:state.careerProfile.dailyMinutes,
-    daysPerWeek:state.careerProfile.daysPerWeek,activeWeek:Number(f.get("activeWeek")),
+  const f=new FormData(form),settings=validateSettings({...state.settings,minutesPerDay:Number(f.get("minutesPerDay")),
+    daysPerWeek:Number(f.get("daysPerWeek")),activeWeek:Number(f.get("activeWeek")),
     timezone:f.get("timezone").trim(),startDate:f.get("startDate")||null,paused:f.has("paused")});
-  await commit(s=>{s.settings=settings});dirty=false;render();toast("Your learning rhythm is updated.");
+  await commit(s=>{s.settings=settings;s.careerProfile.dailyMinutes=settings.minutesPerDay;s.careerProfile.daysPerWeek=settings.daysPerWeek});dirty=false;render();toast("Your learning rhythm is updated.");
 }
 async function exportProgress(){
   const payload=exportBackup(seed,state),blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
@@ -352,7 +354,7 @@ function navigate(next){
 document.addEventListener("click",async e=>{
   const el=e.target.closest("button,a");if(!el)return;
   try{
-    if(await career.handleClick(el))return;
+    if(await study.click(el))return;
     if(el.matches('a[href^="#"]')){e.preventDefault();navigate(el.getAttribute("href").slice(1));return}
     if(el.dataset.task){openTask(el.dataset.task);return}
     if(el.dataset.java){openJava(el.dataset.java,el.dataset.linkedTask||null);return}
@@ -379,7 +381,7 @@ document.addEventListener("click",async e=>{
 document.addEventListener("click",e=>{if(e.target.matches(".mobile-shade"))document.body.classList.remove("menu-open")});
 document.addEventListener("input",e=>{
   if(e.target.id==="problem-search"){
-    filters.query=e.target.value;const rows=filteredProblems();$("#problem-results").innerHTML=problemTable(rows);$("#result-count").textContent=`${rows.length} tasks`;
+    filters.query=e.target.value;const rows=filteredProblems();$("#problem-results").innerHTML=study.groups(rows);$("#result-count").textContent=`${rows.length} problems`;
   }else if(e.target.closest("form"))dirty=true;
 });
 document.addEventListener("change",e=>{
@@ -387,9 +389,9 @@ document.addEventListener("change",e=>{
   else if(e.target.closest("form"))dirty=true;
 });
 document.addEventListener("submit",async e=>{
-  if(!["attempt-form","java-form","design-form","settings-form","career-task-form","career-mock-form","career-application-form","career-profile-form"].includes(e.target.id))return;
+  if(!["attempt-form","java-form","design-form","settings-form","study-plan-form","study-session-form"].includes(e.target.id))return;
   e.preventDefault();const form=e.target,button=form.querySelector('[type="submit"]'),error=form.querySelector(".form-error");error.textContent="";button.disabled=true;
-  try{if(form.id.startsWith("career-"))await career.submit(form);else await {"attempt-form":submitAttempt,"java-form":submitJava,"design-form":submitDesign,"settings-form":submitSettings}[form.id](form)}
+  try{if(form.id.startsWith("study-"))await study.submit(form);else await {"attempt-form":submitAttempt,"java-form":submitJava,"design-form":submitDesign,"settings-form":submitSettings}[form.id](form)}
   catch(err){error.textContent=err.message;error.scrollIntoView({block:"nearest"})}
   finally{button.disabled=false}
 });
@@ -397,11 +399,12 @@ $("#backup-file").addEventListener("change",async e=>{try{await previewImport(e.
 $("#task-dialog").addEventListener("cancel",e=>{e.preventDefault();closeTask()});
 $("#import-dialog").addEventListener("cancel",()=>{importCandidate=null});
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
-window.addEventListener("hashchange",()=>{const next=location.hash.slice(1)||"today";if(next!==view)navigate(next);document.body.classList.remove("menu-open")});
+window.addEventListener("hashchange",()=>{const next=location.hash.slice(1)||"practice";if(next!==view)navigate(next);document.body.classList.remove("menu-open")});
 try{
   db=await openStore();state=await readState(db);
   if(!state)state=await writeState(db,initialState(seed),0);
   if(!state.careerProfile||!state.careerEntries){state=await writeState(db,normalizeCareer(state),state.revision);}
+  if(!state.studyEntries)state=await writeState(db,normalizeStudy(state),state.revision);
   designWeek=state.settings.activeWeek;
   if("BroadcastChannel" in window){channel=new BroadcastChannel("dsa-now-updates");channel.onmessage=e=>{if(e.data.revision!==state.revision){storageError="Progress changed in another tab. Reload before making more changes.";setSaveLabel("Another tab has updates");toast(storageError,"error")}}}
   render();timerInterval=setInterval(timerTick,500);

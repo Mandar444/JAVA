@@ -1,3 +1,4 @@
+import {normalizeStudy,validateStudyEntries} from "./study-domain.mjs";
 import {normalizeCareer,validateCareerEntries,validateCareerProfile} from './career-domain.mjs';
 export const OUTCOMES = ["Attempted", "Solved with help", "Solved independently"];
 export const DESIGN_STATUSES = ["Learning", "Drafted", "Reviewed"];
@@ -46,7 +47,7 @@ export function summarize(seed,state,today=localDate(new Date(),state.settings.t
   const core=seed.problems.filter(p=>p.track==="Core");
   const due=seed.problems.filter(p=>reviews[p.id].nextDueDate && reviews[p.id].nextDueDate<=today)
     .sort((a,b)=>reviews[a.id].nextDueDate.localeCompare(reviews[b.id].nextDueDate)||a.id.localeCompare(b.id));
-  const allEvents=[...state.attempts,...state.systemDesignEntries,...state.javaRevisionEntries,...(state.careerEntries||[])];
+  const allEvents=[...state.attempts,...state.systemDesignEntries,...state.javaRevisionEntries,...(state.careerEntries||[]),...(state.studyEntries||[]).filter(e=>e.kind==="session").map(e=>({...e,localDate:e.date}))];
   const daily={};
   for(const e of allEvents) daily[e.localDate]=(daily[e.localDate]||0)+(e.minutes||0);
   let streak=0, cursor=daily[today]>0?today:addDays(today,-1);
@@ -63,16 +64,16 @@ export function summarize(seed,state,today=localDate(new Date(),state.settings.t
     todayMinutes:daily[today]||0};
 }
 export function initialState(seed) {
-  return {revision:0,settings:{timezone:"Asia/Kolkata",minutesPerDay:90,daysPerWeek:6,startDate:localDate(),
+  return {revision:0,studyEntries:[],settings:{timezone:"Asia/Kolkata",minutesPerDay:90,daysPerWeek:6,startDate:localDate(),
     activeWeek:1,paused:false,lastBackupAt:null},attempts:[],systemDesignEntries:[],javaRevisionEntries:[],
     legacyImports:seed.legacyImport?[{id:"legacy-"+seed.legacyImport.sha256,sha256:seed.legacyImport.sha256,
       sourceFileName:seed.legacyImport.sourceFileName,sourceSavedAt:seed.legacyImport.sourceSavedAt,
       importedAt:new Date().toISOString(),payload:seed.legacyImport.payload,mappingStatus:"unmapped"}]:[]};
 }
 export function exportBackup(seed,state) {
-  return {kind:"progress-backup",schemaVersion:2,curriculumVersion:seed.curriculumVersion,
+  return {kind:"progress-backup",schemaVersion:3,curriculumVersion:seed.curriculumVersion,
     exportedAt:new Date().toISOString(),settings:state.settings,attempts:state.attempts,
-    systemDesignEntries:state.systemDesignEntries,javaRevisionEntries:state.javaRevisionEntries,legacyImports:state.legacyImports,careerEntries:state.careerEntries||[],careerProfile:normalizeCareer(state).careerProfile};
+    systemDesignEntries:state.systemDesignEntries,javaRevisionEntries:state.javaRevisionEntries,legacyImports:state.legacyImports,careerEntries:state.careerEntries||[],careerProfile:normalizeCareer(state).careerProfile,studyEntries:state.studyEntries||[]};
 }
 function fail(message){throw new Error(message)}
 function string(v,label,max=100000){if(typeof v!=="string"||v.length>max)fail(`${label} must be text (max ${max} characters).`)}
@@ -110,11 +111,13 @@ export function validateLegacy(raw) {
   return raw;
 }
 export function validateBackup(raw,seed) {
-  if(!raw||raw.kind!=="progress-backup"||![1,2].includes(raw.schemaVersion))fail("Unsupported backup type or version.");
+  if(!raw||raw.kind!=="progress-backup"||![1,2,3].includes(raw.schemaVersion))fail("Unsupported backup type or version.");
   if(raw.curriculumVersion!==seed.curriculumVersion)fail("This backup uses a different curriculum version. Nothing was changed.");
   const settings=validateSettings(raw.settings);
-  const result={...raw,settings,careerEntries:raw.careerEntries||[],careerProfile:normalizeCareer(raw).careerProfile};
-  if(raw.schemaVersion===2&&(!raw.careerEntries||!raw.careerProfile))fail("Missing preparation data.");
+  const result={...raw,settings,studyEntries:raw.studyEntries||[],careerEntries:raw.careerEntries||[],careerProfile:normalizeCareer(raw).careerProfile};
+  if(raw.schemaVersion>=2&&(!raw.careerEntries||!raw.careerProfile))fail("Missing preparation data.");
+  if(raw.schemaVersion===3&&!raw.studyEntries)fail("Missing calendar data.");
+  validateStudyEntries(result.studyEntries,seed);
   validateCareerEntries(result.careerEntries);validateCareerProfile(result.careerProfile);
   const pids=new Set(seed.problems.map(p=>p.id)), sids=new Set(seed.roadmap.map(w=>w.systemDesignId)), jids=new Set(seed.javaHelp.map(j=>j.id));
   for(const type of ["attempts","systemDesignEntries","javaRevisionEntries","legacyImports"]) {
@@ -151,8 +154,8 @@ function canonical(value) {
   return JSON.stringify(value);
 }
 export function mergeBackup(state,backup,{conflict="reject",importSettings=false}={}) {
-  const merged=normalizeCareer(structuredClone(state));let added=0,duplicates=0,conflicts=0;
-  for(const type of ["attempts","systemDesignEntries","javaRevisionEntries","legacyImports","careerEntries"]) {
+  const merged=normalizeStudy(normalizeCareer(structuredClone(state)));let added=0,duplicates=0,conflicts=0;
+  for(const type of ["attempts","systemDesignEntries","javaRevisionEntries","legacyImports","careerEntries","studyEntries"]) {
     const map=new Map(merged[type].map(e=>[e.id,e]));
     for(const e of (backup[type]||[])) {
       const prior=map.get(e.id);
@@ -163,7 +166,7 @@ export function mergeBackup(state,backup,{conflict="reject",importSettings=false
     merged[type]=[...map.values()];
   }
   if(conflicts && conflict==="reject")fail(`${conflicts} conflicting event ID(s). Choose which copy to keep.`);
-  if(importSettings){merged.settings=backup.settings;if(backup.schemaVersion===2&&backup.careerProfile)merged.careerProfile=backup.careerProfile;}
+  if(importSettings){merged.settings=backup.settings;if(backup.schemaVersion>=2&&backup.careerProfile)merged.careerProfile=backup.careerProfile;}
   return {state:normalizeCareer(merged),added,duplicates,conflicts};
 }
 export function safeUrl(value) {

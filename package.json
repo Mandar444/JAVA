@@ -1,8 +1,8 @@
 {
   "name": "dsa-now",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Local Java DSA and Google-first career preparation tracker",
+  "description": "Java DSA, system design and a daily study calendar",
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
