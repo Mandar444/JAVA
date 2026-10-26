@@ -1,0 +1,14 @@
+{
+  "name": "dsa-now",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Local Java DSA and Google-first career preparation tracker",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/domain.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
